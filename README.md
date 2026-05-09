@@ -4,6 +4,14 @@
 
 **v1.4 — May 2026 · Single HTML file · No install · No backend**
 
+[![Live Site](https://img.shields.io/badge/🌐%20Live%20Site-bh00t.github.io%2Fcan__i__run__this__model-0a66c2?style=flat-square)](https://bh00t.github.io/can_i_run_this_model/)
+[![Models](https://img.shields.io/badge/Models-Open%20Source%20Catalog-e05d2a?style=flat-square)](https://bh00t.github.io/can_i_run_this_model/#all-models)
+[![GPUs](https://img.shields.io/badge/GPUs-Multi%20Vendor%20Support-7c3aed?style=flat-square)](https://bh00t.github.io/can_i_run_this_model/)
+[![Ollama](https://img.shields.io/badge/Ollama-Install%20Commands%20Included-000000?style=flat-square&logo=ollama&logoColor=white)](https://ollama.com/)
+[![No Install](https://img.shields.io/badge/No%20Install-Single%20HTML%20File-16a34a?style=flat-square)](https://bh00t.github.io/can_i_run_this_model/)
+[![Data](https://img.shields.io/badge/Data-Hugging%20Face%20Live%20API-ffd21e?style=flat-square&logoColor=black&logo=huggingface)](https://huggingface.co/)
+[![License](https://img.shields.io/badge/License-MIT-22c55e?style=flat-square)](LICENSE)
+
 🔗Live site →  **[can_i_run_this_model](https://bh00t.github.io/can_i_run_this_model/)**
 
 ---
