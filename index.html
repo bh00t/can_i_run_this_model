@@ -10,31 +10,32 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Tailwind config MUST be defined before the CDN script loads so the JIT
+     engine picks up custom tokens during its initial DOM scan. Setting it
+     inside a 'load' listener (the previous pattern) runs after Tailwind has
+     already finished — causing custom colors/fonts to be missing on mobile
+     browsers where script execution order differs from desktop. -->
+<script>
+  tailwind = { config: {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter','sans-serif'],
+          serif: ['Fraunces','serif'],
+          mono: ['JetBrains Mono','monospace'],
+        },
+        colors: {
+          base:'#FFFFFF', ink:'#000000',
+          surface:'#F4F4F5', muted:'#595959', outline:'#D4D4D8',
+          red:'#FF3621', redLight:'#FFF1EF', redDark:'#C42B18',
+        }
+      }
+    }
+  }};
+</script>
 <!-- Note: cdn.tailwindcss.com does not publish fixed-hash releases, so SRI is not supported.
      For production, replace with a self-hosted Tailwind build to enable CSP + SRI. -->
 <script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
-<script>
-window.addEventListener('load', function() {
-  if (typeof tailwind !== 'undefined') {
-    tailwind.config = {
-  theme: {
-    extend: {
-      fontFamily: {
-        sans: ['Inter','sans-serif'],
-        serif: ['Fraunces','serif'],
-        mono: ['JetBrains Mono','monospace'],
-      },
-      colors: {
-        base:'#FFFFFF', ink:'#000000',
-        surface:'#F4F4F5', muted:'#595959', outline:'#D4D4D8',
-        red:'#FF3621', redLight:'#FFF1EF', redDark:'#C42B18',
-      }
-    }
-  }
-}
-  }
-});
-</script>
 <style>
 /* ── RESET & BASE ──
    border-box across everything so padding doesn't break grid math.
@@ -1403,8 +1404,10 @@ function safeText(str) {
 }
 
 // Wraps window.fetch with an AbortController timeout so stalled HF requests
-// do not block the pipeline indefinitely. Default: 6 s per request.
-async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
+// do not block the pipeline indefinitely.
+// Default: 10 s per request (increased from 6 s — mobile networks are slower
+// and 6 s caused the entire pipeline to time out before rendering on LTE/3G).
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
