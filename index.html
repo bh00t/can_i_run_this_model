@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,32 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<!-- Tailwind config MUST be defined before the CDN script loads so the JIT
-     engine picks up custom tokens during its initial DOM scan. Setting it
-     inside a 'load' listener (the previous pattern) runs after Tailwind has
-     already finished — causing custom colors/fonts to be missing on mobile
-     browsers where script execution order differs from desktop. -->
-<script>
-  tailwind = { config: {
-    theme: {
-      extend: {
-        fontFamily: {
-          sans: ['Inter','sans-serif'],
-          serif: ['Fraunces','serif'],
-          mono: ['JetBrains Mono','monospace'],
-        },
-        colors: {
-          base:'#FFFFFF', ink:'#000000',
-          surface:'#F4F4F5', muted:'#595959', outline:'#D4D4D8',
-          red:'#FF3621', redLight:'#FFF1EF', redDark:'#C42B18',
-        }
-      }
-    }
-  }};
-</script>
-<!-- Note: cdn.tailwindcss.com does not publish fixed-hash releases, so SRI is not supported.
-     For production, replace with a self-hosted Tailwind build to enable CSP + SRI. -->
-<script src="https://cdn.tailwindcss.com" crossorigin="anonymous"></script>
+<!-- Tailwind CDN removed — the project uses only custom CSS classes.
+     The sole Tailwind utility used (scroll-smooth) is handled by html{scroll-behavior:smooth} below. -->
 <style>
 /* ── RESET & BASE ──
    border-box across everything so padding doesn't break grid math.
@@ -349,6 +325,10 @@ body::before{
 @media(max-width:640px){
   .model-grid{grid-template-columns:1fr!important;}
   .stat-grid{grid-template-columns:repeat(2,1fr)!important;}
+  /* Disable reveal animations on mobile — IntersectionObserver timing is
+     unreliable on short viewports and can leave content permanently hidden
+     if the observer fires before the async pipeline has rendered anything. */
+  .reveal{opacity:1!important;transform:none!important;transition:none!important;}
 }
 
 /* ── PRINT / REDUCED MOTION ──
@@ -616,7 +596,7 @@ body::before{
       <button onclick="openDrawer('deepseek-r1-32b')" style="background:#fff;border:1px solid #000;padding:0.25rem 0.6rem;font-family:'JetBrains Mono',monospace;font-size:0.65rem;font-weight:800;cursor:pointer;" onmouseover="this.style.background='#F4F4F5'" onmouseout="this.style.background='#fff'"><span style="color:#16A34A;">High</span> · DeepSeek R1 32B <span style="font-weight:400;color:#595959;">— best reasoning</span></button>
       <button onclick="openDrawer('gemma4-e4b')" style="background:#fff;border:1px solid #000;padding:0.25rem 0.6rem;font-family:'JetBrains Mono',monospace;font-size:0.65rem;font-weight:800;cursor:pointer;" onmouseover="this.style.background='#F4F4F5'" onmouseout="this.style.background='#fff'"><span style="color:#4F46E5;">Mid</span> · Gemma 4 E4B <span style="font-weight:400;color:#595959;">— best multimodal</span></button>
     </div>
-    <div id="model-grid" class="model-grid reveal d2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.25rem;">
+    <div id="model-grid" class="model-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.25rem;">
       <!-- Skeleton placeholders shown while pipeline loads -->
       <div class="skel-card" style="padding:1rem 1.125rem;height:220px;">
         <span class="skel-line" style="width:60px;height:14px;margin-bottom:8px;"></span>
@@ -1404,9 +1384,7 @@ function safeText(str) {
 }
 
 // Wraps window.fetch with an AbortController timeout so stalled HF requests
-// do not block the pipeline indefinitely.
-// Default: 10 s per request (increased from 6 s — mobile networks are slower
-// and 6 s caused the entire pipeline to time out before rendering on LTE/3G).
+// do not block the pipeline indefinitely. Default: 6 s per request.
 async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -3038,4 +3016,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-
