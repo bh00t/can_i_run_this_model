@@ -7,6 +7,31 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='18' y='18' width='28' height='28' rx='3' fill='none' stroke='%23FF3621' stroke-width='3'/%3E%3Ctext x='32' y='36' font-family='Arial,sans-serif' font-size='10' font-weight='800' fill='%23FF3621' text-anchor='middle'%3EAI%3C/text%3E%3Cline x1='24' y1='18' x2='24' y2='10' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='18' x2='32' y2='10' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='40' y1='18' x2='40' y2='10' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='24' y1='46' x2='24' y2='54' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='32' y1='46' x2='32' y2='54' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='40' y1='46' x2='40' y2='54' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='18' y1='24' x2='10' y2='24' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='18' y1='32' x2='10' y2='32' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='18' y1='40' x2='10' y2='40' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='46' y1='24' x2='54' y2='24' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='46' y1='32' x2='54' y2='32' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3Cline x1='46' y1='40' x2='54' y2='40' stroke='%23FF3621' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
 <meta name="description" content="Complete catalog of open source AI models you can run locally. Filter by hardware tier, use case, license, and quantization. Find models that run on your laptop.">
 
+<!-- Content Security Policy — restricts what the page may load.
+     - default-src 'self'   : nothing loads from third parties by default
+     - style-src adds Google Fonts CSS + inline (the <style> block + inline style="" attrs)
+     - font-src  permits the Google Fonts WOFF2 files
+     - connect-src restricts XHR/fetch to HuggingFace only (the live enrichment API)
+     - img-src adds data: for the inline SVG favicon and noise overlay
+     - script-src 'unsafe-inline' is required because all JS lives in a <script> block
+       and several DOM-rendered fragments still use onclick="…" attributes -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://huggingface.co; img-src 'self' data:; script-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#FF3621">
+
+<!-- OpenGraph / Twitter Card — controls how the page appears when shared
+     to Discord, Slack, X, iMessage, etc. og:image should be a 1200×630 PNG
+     screenshot of the tool; drop it next to index.html as og.png. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Can I Run This Model?">
+<meta property="og:description" content="Enter your RAM and VRAM — get instant compatibility grades and tok/s estimates for 50+ open-source AI models.">
+<meta property="og:url" content="https://bh00t.github.io/can_i_run_this_model/">
+<meta property="og:image" content="https://bh00t.github.io/can_i_run_this_model/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Can I Run This Model?">
+<meta name="twitter:description" content="Enter your RAM and VRAM — get instant compatibility grades and tok/s estimates for 50+ open-source AI models.">
+<meta name="twitter:image" content="https://bh00t.github.io/can_i_run_this_model/og.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -151,6 +176,17 @@ body::before{
   cursor:pointer;
 }
 .model-card:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 #000;}
+/* Keyboard focus — distinct from hover (uses brand red, not black box-shadow).
+   Applied to model cards, tier-list rows, and any element with role=button. */
+.model-card:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid #FF3621;
+  outline-offset: 2px;
+}
+.model-card:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible) {
+  outline: none;
+}
 .model-card.hidden{display:none!important;}
 .model-card-header{
   padding:1rem 1.125rem 0.75rem;
@@ -1369,7 +1405,41 @@ body::before{
    dynamic script injection.
 ──────────────────────────────────────────────────────────── */
 
+// ── CONFIG & SCHEMA VERSION ──
+// Central tuning constants. Edit values here rather than searching through code.
+// SCHEMA_VERSION is prepended to every localStorage key — bump it whenever
+// the shape of cached HF data, the parsed model card, or userHardware changes.
+// Old entries become unreachable and are eventually evicted by their TTL,
+// guaranteeing no stale-shape bugs after a deploy.
+const SCHEMA_VERSION = 'v2';
+const CONFIG = {
+  // Network
+  FETCH_TIMEOUT_MS:     10000,        // Per-request abort timeout
+  HF_CONCURRENCY:       12,           // Parallel HF requests in flight (was: unlimited)
+  // Cache TTLs (seconds)
+  CONFIG_TTL_S:         604800,       // 7 days  — model architecture rarely changes
+  CARD_TTL_S:           86400,        // 24 h    — model card edits are common
+  PIPELINE_TTL_S:       86400,        // 24 h    — master pipeline snapshot
+  // VRAM safety buffers (multipliers over raw weight bytes)
+  VRAM_BUFFER_MIN:      1.10,         // +10% — "will load but slow"
+  VRAM_BUFFER_COMFORT:  1.35,         // +35% — comfortable
+  VRAM_BUFFER_REC:      1.70,         // +70% — recommended headroom
+  // TPS progress-bar ceilings per hardware tier (t/s)
+  TPS_CEILING:          { entry: 15, mid: 50, high: 120 },
+};
+
 // ── 0. SECURITY UTILITIES ──
+
+// Logs a one-time warning if localStorage isn't writable (Safari Private mode,
+// quota exceeded, third-party cookies blocked in an iframe). Browser session
+// continues normally — only persistence is lost. The warn-once flag prevents
+// log spam across many failed setItem calls.
+let _lsWarned = false;
+function warnStorageFailure(err) {
+  if (_lsWarned) return;
+  _lsWarned = true;
+  console.warn('[storage] localStorage write failed — settings will not persist this session.', err);
+}
 
 // Escapes API-sourced or user-supplied strings before inserting into innerHTML.
 // Prevents XSS from crafted HuggingFace README / config.json values.
@@ -1384,8 +1454,8 @@ function safeText(str) {
 }
 
 // Wraps window.fetch with an AbortController timeout so stalled HF requests
-// do not block the pipeline indefinitely. Default: 6 s per request.
-async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+// do not block the pipeline indefinitely. Default comes from CONFIG.FETCH_TIMEOUT_MS.
+async function fetchWithTimeout(url, options = {}, timeoutMs = CONFIG.FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -1501,20 +1571,23 @@ let ORIGINAL_ORDER = [];
 // Reads user inputs from the text boxes and saves them to state.
 // Preserves bandwidth + isApple set by onGpuSelect() or autoDetectHardware().
 function saveHardware() {
-  const ram = parseInt(document.getElementById('hw-ram').value) || 0;
-  const vram = parseInt(document.getElementById('hw-vram').value) || 0;
+  const ram = parseInt(document.getElementById('hw-ram').value, 10) || 0;
+  const vram = parseInt(document.getElementById('hw-vram').value, 10) || 0;
   userHardware = { ram, vram, bandwidth: userHardware.bandwidth || 0, isApple: userHardware.isApple || false, set: true };
-  try { localStorage.setItem('userHardware', JSON.stringify(userHardware)); } catch(e) {}
+  try { localStorage.setItem(`${SCHEMA_VERSION}_userHardware`, JSON.stringify(userHardware)); }
+  catch(e) { warnStorageFailure(e); }
   updateUrlParams();
   sortModelsByGrade();
   renderAllCards();
   updateHwStrip();
 }
 
-// Restore previously saved hardware from localStorage
+// Restore previously saved hardware from localStorage.
+// Uses the SCHEMA_VERSION'd key so a future format change is invisible to the user
+// rather than restoring a broken shape under a stale key.
 function restoreHardware() {
   try {
-    const saved = JSON.parse(localStorage.getItem('userHardware'));
+    const saved = JSON.parse(localStorage.getItem(`${SCHEMA_VERSION}_userHardware`));
     if (saved && typeof saved.ram === 'number' && typeof saved.vram === 'number') {
       userHardware = { ram: saved.ram, vram: saved.vram, bandwidth: saved.bandwidth || 0, isApple: saved.isApple || false, set: true };
       document.getElementById('hw-ram').value  = saved.ram;
@@ -2060,9 +2133,9 @@ function calcVramAccurate(config, quantBits, contextOverride) {
 
   return {
     raw_gb:        +(totalGB.toFixed(2)),
-    minimum_gb:    +(totalGB * 1.10).toFixed(1),   // +10% 
-    comfortable_gb:+(totalGB * 1.35).toFixed(1),   // +35% 
-    recommended_gb:+(totalGB * 1.70).toFixed(1)    // +70% 
+    minimum_gb:    +(totalGB * CONFIG.VRAM_BUFFER_MIN).toFixed(1),
+    comfortable_gb:+(totalGB * CONFIG.VRAM_BUFFER_COMFORT).toFixed(1),
+    recommended_gb:+(totalGB * CONFIG.VRAM_BUFFER_REC).toFixed(1)
   };
 }
 
@@ -2071,15 +2144,18 @@ function calcVramAccurate(config, quantBits, contextOverride) {
 // Avoids hammering the HuggingFace API on every page load by caching:
 //   hf_config_{repo}   — architecture config.json    (7-day TTL)
 //   hf_card_{repo}     — parsed README.md metadata   (24-hour TTL)
-//   model_pipeline_v1  — complete enriched MODELS[]   (24-hour TTL)
+//   model_pipeline     — complete enriched MODELS[]   (24-hour TTL)
+// Every key is automatically prefixed with SCHEMA_VERSION so bumping the
+// schema causes all old entries to fall out of reach without manual cleanup.
 // Expired entries are deleted on read so stale data never surfaces.
 const cacheSource = {
+  _k: (key) => `${SCHEMA_VERSION}_${key}`,
   get: (key) => {
     try {
-      const item = JSON.parse(localStorage.getItem(key));
+      const item = JSON.parse(localStorage.getItem(cacheSource._k(key)));
       if (!item) return null;
       if (item.expires && Date.now() > item.expires) {
-        localStorage.removeItem(key); // Clear if expired
+        localStorage.removeItem(cacheSource._k(key)); // Clear if expired
         return null;
       }
       return item.data;
@@ -2087,16 +2163,26 @@ const cacheSource = {
   },
   set: (key, data, ttlSecs) => {
     const item = { data, expires: ttlSecs ? Date.now() + ttlSecs * 1000 : null };
-    localStorage.setItem(key, JSON.stringify(item));
+    try {
+      localStorage.setItem(cacheSource._k(key), JSON.stringify(item));
+    } catch (e) {
+      // Quota exceeded / Safari Private — warn once, continue without persistence.
+      warnStorageFailure(e);
+    }
   }
 };
 
 // ── 6. HF API FETCHING & PARSING ──
 
+// Running tally of fetch outcomes — surfaced in the pipeline status badge so
+// users (and devs) can see *why* live enrichment didn't land. Reset per page load.
+const HF_STATS = { ok: 0, notFound: 0, rateLimited: 0, timeout: 0, error: 0 };
+
 // Fetches the model's config.json from HuggingFace and caches it for 7 days.
 // config.json exposes architecture metadata (hidden_size, num_layers, vocab_size, …)
 // that calcVramAccurate() uses to compute precise VRAM estimates.
 // Returns null on any network/parse error so the pipeline degrades gracefully.
+// All failure modes (404 / 429 / timeout / parse) update HF_STATS for diagnostics.
 async function fetchHFConfig(hfRepo) {
   if (!hfRepo) return null;
   const cacheKey = `hf_config_${hfRepo.replace('/', '_')}`;
@@ -2106,11 +2192,22 @@ async function fetchHFConfig(hfRepo) {
   try {
     const url = `https://huggingface.co/${hfRepo}/resolve/main/config.json`;
     const res = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 404) HF_STATS.notFound++;
+      else if (res.status === 429) HF_STATS.rateLimited++;
+      else HF_STATS.error++;
+      return null;
+    }
     const config = await res.json();
-    cacheSource.set(cacheKey, config, 604800); // Cache 7 days
+    cacheSource.set(cacheKey, config, CONFIG.CONFIG_TTL_S);
+    HF_STATS.ok++;
     return config;
-  } catch (e) { return null; }
+  } catch (e) {
+    // AbortError = our own timeout; everything else = network/parse error
+    if (e && e.name === 'AbortError') HF_STATS.timeout++;
+    else HF_STATS.error++;
+    return null;
+  }
 }
 
 // Fetches the model's README.md (model card) from HuggingFace and caches for 24 h.
@@ -2127,12 +2224,22 @@ async function fetchHFModelCard(hfRepo) {
   try {
     const url = `https://huggingface.co/${hfRepo}/resolve/main/README.md`;
     const res = await fetchWithTimeout(url, { headers: { 'Accept': 'text/plain, text/markdown' } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 404) HF_STATS.notFound++;
+      else if (res.status === 429) HF_STATS.rateLimited++;
+      else HF_STATS.error++;
+      return null;
+    }
     const text = await res.text();
     const parsed = parseModelCard(text);
-    cacheSource.set(cacheKey, parsed, 86400); // Cache 24h
+    cacheSource.set(cacheKey, parsed, CONFIG.CARD_TTL_S);
+    HF_STATS.ok++;
     return parsed;
-  } catch (e) { return null; }
+  } catch (e) {
+    if (e && e.name === 'AbortError') HF_STATS.timeout++;
+    else HF_STATS.error++;
+    return null;
+  }
 }
 
 // Parses a HuggingFace README.md string and extracts structured metadata
@@ -2186,12 +2293,15 @@ function deriveUseCases(pipeline, tags = []) {
     'feature-extraction':   'embeddings',
   };
   if (pipeline && pipelineMap[pipeline]) uses.add(pipelineMap[pipeline]);
-  if (t.some(x => ['code','coding','codellama','starcoder'].some(k => x.includes(k)))) uses.add('code');
-  if (t.some(x => ['math','reasoning','chain-of-thought','cot'].some(k => x.includes(k)))) uses.add('reasoning');
-  if (t.some(x => ['function-calling','tool-use','tools','agent'].some(k => x.includes(k)))) uses.add('tools');
-  if (t.some(x => ['rag','retrieval','long-context'].some(k => x.includes(k)))) uses.add('rag');
-  if (t.some(x => ['embed','sentence-similarity','semantic'].some(k => x.includes(k)))) uses.add('embeddings');
-  if (t.some(x => ['multilingual','translation'].some(k => x.includes(k)))) uses.add('multilingual');
+  // Exact-set membership instead of substring matching: prevents misfires like
+  // includes('rag') matching 'dragon' or includes('cot') matching 'apricot'.
+  const has = (set) => t.some(x => set.has(x));
+  if (has(new Set(['code','coding','codellama','starcoder']))) uses.add('code');
+  if (has(new Set(['math','reasoning','chain-of-thought','cot']))) uses.add('reasoning');
+  if (has(new Set(['function-calling','tool-use','tools','agent']))) uses.add('tools');
+  if (has(new Set(['rag','retrieval','long-context']))) uses.add('rag');
+  if (has(new Set(['embed','embedding','embeddings','sentence-similarity','semantic']))) uses.add('embeddings');
+  if (has(new Set(['multilingual','translation']))) uses.add('multilingual');
   return [...uses];
 }
 
@@ -2199,7 +2309,7 @@ function deriveUseCases(pipeline, tags = []) {
 // The async entry point that transforms the raw CURATED_MODELS seed into the
 // fully-enriched MODELS[] array that drives all rendering.
 //
-// Pipeline stages (all run in parallel across all 35 models):
+// Pipeline stages (run with concurrency capped at CONFIG.HF_CONCURRENCY):
 //   Layer 1  — Start from CURATED_MODELS as the guaranteed baseline
 //   Layer 2  — Fetch config.json from HuggingFace (architecture metadata)
 //   Layer 3  — Fetch README.md from HuggingFace (license, tags, languages)
@@ -2207,14 +2317,53 @@ function deriveUseCases(pipeline, tags = []) {
 //   Layer 5  — Compute accurate VRAM estimates via calcVramAccurate() for
 //              non-verified models that returned a config.json
 //
-// On completion: renders all DOM sections, updates pipeline status badge.
+// On completion: renders all DOM sections, updates pipeline status badge
+//                (with diagnostics — HF_STATS counters).
 // On failure:    falls back to raw CURATED_MODELS with data_quality:'curated'.
-async function loadModelsPipeline() {
-  // Layer 1: Start with curated base catalog 
-  const curated = [...CURATED_MODELS];
 
-  // Layer 2, 4, 5: Fetch live data and merge intelligently
-  const enriched = await Promise.allSettled(curated.map(async (model) => {
+// Simple promise pool — runs at most `limit` tasks concurrently.
+// Replaces an unbounded Promise.allSettled across 51 models which can
+// hammer the HF CDN and trigger rate-limiting on cold-cache loads.
+async function pLimit(items, limit, worker) {
+  const out = new Array(items.length);
+  let next = 0;
+  async function runner() {
+    while (next < items.length) {
+      const i = next++;
+      try { out[i] = await worker(items[i], i); }
+      catch (e) { out[i] = undefined; }
+    }
+  }
+  const runners = Array.from({ length: Math.min(limit, items.length) }, runner);
+  await Promise.all(runners);
+  return out;
+}
+
+async function loadModelsPipeline() {
+  // ── FAST PATH: pipeline cache hit (warm load) ──
+  // If a prior session left us a fully-enriched MODELS[] snapshot, render it
+  // immediately and skip the network entirely. This is the common case after
+  // the first visit — page is interactive in one event-loop tick.
+  const cachedPipeline = cacheSource.get('model_pipeline');
+  if (cachedPipeline && Array.isArray(cachedPipeline) && cachedPipeline.length > 0) {
+    MODELS = cachedPipeline;
+    ORIGINAL_ORDER = MODELS.map(m => m.id);
+    if (userHardware.set) sortModelsByGrade();
+    renderAllCards();
+    renderTierLists();
+    renderMinimumsTable();
+    updateHwStrip();
+    const statusText = document.getElementById('pipeline-status-text');
+    if (statusText) statusText.innerHTML = `<span style="display:inline-block;width:6px;height:6px;background:#16A34A;border-radius:50%;"></span> Cached — ${MODELS.filter(m=>m.live_enriched).length}/${MODELS.length} enriched`;
+    return;
+  }
+
+  // ── COLD PATH: no master cache, fetch HF data ──
+  // Don't pre-render the curated catalog — that would force a second full
+  // render after enrichment (51 cards × 2 = noticeable jank on slower CPUs).
+  // The skeleton loader in the markup keeps the UI alive while we work.
+  const curated = [...CURATED_MODELS];
+  const enriched = await pLimit(curated, CONFIG.HF_CONCURRENCY, async (model) => {
     let finalModel = { ...model };
 
     if (finalModel.hf_repo) {
@@ -2243,7 +2392,7 @@ async function loadModelsPipeline() {
           finalModel.uses = [...new Set([...model.uses, ...hfCard.useCases])];
       }
 
-      // 2. Hardware specs: Calculate missing minimums via precise math parameters 
+      // 2. Hardware specs: Calculate missing minimums via precise math parameters
       if (!model.verified && hfConfig) {
          // Defaulting algorithm assumes a Q4_K_M (4-bit) quantization structure
          const vramData = calcVramAccurate(hfConfig, 4, finalModel.context);
@@ -2258,32 +2407,43 @@ async function loadModelsPipeline() {
     }
 
     return finalModel;
-  }));
+  });
 
-  // Store final compiled data structure 
-  MODELS = enriched.filter(r => r.status === 'fulfilled').map(r => r.value);
+  // Store final compiled data structure
+  MODELS = enriched.filter(Boolean);
   // Snapshot the pipeline order so clearHardware() can restore it (MODELS gets sorted in-place)
   ORIGINAL_ORDER = MODELS.map(m => m.id);
-  cacheSource.set('model_pipeline_v1', MODELS, 86400); // Master cache for 24h
+  cacheSource.set('model_pipeline', MODELS, CONFIG.PIPELINE_TTL_S);
 
   // ── Update Pipeline Status badge based on actual API results ──
   const liveCount = MODELS.filter(m => m.live_enriched).length;
   const statusBox  = document.getElementById('pipeline-status-box');
   const statusDot  = document.getElementById('pipeline-status-dot');
   const statusText = document.getElementById('pipeline-status-text');
+
+  // Build a diagnostic tooltip so devs/users can see *why* enrichment failed
+  // when liveCount < total. Visible on hover; doesn't clutter the headline.
+  const diagTitle = `HF requests — OK: ${HF_STATS.ok}, 404: ${HF_STATS.notFound}, 429: ${HF_STATS.rateLimited}, timeout: ${HF_STATS.timeout}, error: ${HF_STATS.error}`;
+  if (HF_STATS.rateLimited > 0 || HF_STATS.timeout > 2) {
+    console.warn('[pipeline]', diagTitle);
+  }
+
   if (statusBox && statusDot && statusText) {
     if (liveCount > 0) {
+      const warn = HF_STATS.rateLimited > 0 ? ' ⚠ rate-limited' : '';
       statusDot.style.background  = '#16A34A';
       statusDot.style.animation   = 'pulse 2s infinite';
-      statusText.innerHTML = `<span id="pipeline-status-dot" style="display:inline-block;width:6px;height:6px;background:#16A34A;border-radius:50%;animation:pulse 2s infinite;"></span> Live — ${liveCount}/${MODELS.length} enriched`;
+      statusText.innerHTML = `<span id="pipeline-status-dot" title="${safeText(diagTitle)}" style="display:inline-block;width:6px;height:6px;background:#16A34A;border-radius:50%;animation:pulse 2s infinite;cursor:help;"></span> Live — ${liveCount}/${MODELS.length} enriched${warn}`;
+      statusBox.setAttribute('title', diagTitle);
     } else {
-      statusText.innerHTML = `<span style="display:inline-block;width:6px;height:6px;background:#D4D4D8;border-radius:50%;"></span> Offline — cached data`;
+      statusText.innerHTML = `<span style="display:inline-block;width:6px;height:6px;background:#D4D4D8;border-radius:50%;" title="${safeText(diagTitle)}"></span> Offline — cached data`;
+      statusBox.setAttribute('title', diagTitle);
     }
   }
 
   if(userHardware.set) sortModelsByGrade();
 
-  // Render arrays to DOM mapping blocks
+  // First and only render of the enriched data.
   renderAllCards();
   renderTierLists();
   renderMinimumsTable();
@@ -2333,7 +2493,13 @@ function filterModels(){
   
   document.getElementById('model-count').textContent = count + ' models';
   document.getElementById('empty-state').style.display = count === 0 ? 'block' : 'none';
+  // Reflect filter/search state in the URL — but only after initial render is done.
+  // Calling updateUrlParams() during boot is wasted work (DOM reads + history.replaceState
+  // before the user has done anything). The flag is flipped on at end of DOMContentLoaded.
+  if (_urlSyncReady) updateUrlParams();
 }
+// Toggled true at end of DOMContentLoaded so initial renders don't write the URL.
+let _urlSyncReady = false;
 
 // Resets all filter controls (tier, use-case, search) to their default 'all' state
 // and re-runs filterModels() so all cards become visible again.
@@ -2349,7 +2515,7 @@ function resetFilters(){
 // Clears saved hardware, hides grades, shows full unfiltered model list.
 function clearHardware() {
   userHardware = { ram: 0, vram: 0, bandwidth: 0, isApple: false, set: false };
-  try { localStorage.removeItem('userHardware'); } catch(e) {}
+  try { localStorage.removeItem(`${SCHEMA_VERSION}_userHardware`); } catch(e) {}
   document.getElementById('hw-ram').value  = '';
   document.getElementById('hw-vram').value = '';
   document.getElementById('hw-gpu-pick').value  = '';
@@ -2394,20 +2560,24 @@ function tierLabel(t){return{entry:'Entry',mid:'Mid',high:'High',pro:'Pro'}[t]||
 function tierClass(t){return{entry:'tier-entry',mid:'tier-mid',high:'tier-high',pro:'tier-pro'}[t]||'';}
 function tierColor(t){return{entry:'#EA580C',mid:'#4F46E5',high:'#16A34A',pro:'#000'}[t]||'#000';}
 
-// Renders the ⚡ LIVE / ⚠ ESTIMATED data-provenance badges shown on cards and in
-// the drawer. Both badges carry tooltip text in plain English (not technical jargon).
-// @param {boolean} v         — model.verified (currently unused, reserved for future)
+// Renders the data-provenance badges shown on cards and in the drawer.
+// Three independent badges, each with plain-English tooltips:
+//   ✓ TESTED      — model has hand-verified hardware requirements
+//   ⚡ LIVE       — fresh enrichment from HuggingFace this session
+//   ⚠ ESTIMATED  — VRAM derived from architecture math (not measured)
+// @param {boolean} v         — model.verified (hand-tested on real hardware)
 // @param {boolean} m_live    — true if HF API enrichment succeeded this session
 // @param {string}  m_quality — 'formula' = VRAM estimated; 'tested' | 'curated' = known
 // @returns {string} HTML string (safe to inject; no user-controlled data inside)
-// PRD 4.7 Staleness Transparency Badging Engine
 function verifiedBadge(v, m_live, m_quality){
   let html = '';
-  
+
+  if(v) html += `<span title="Hardware requirements hand-verified on real machines — minRam, minVram, and tok/s are measured values, not estimates." style="background:#7C3AED;color:#fff;font-family:'JetBrains Mono',monospace;font-size:0.52rem;font-weight:800;padding:1px 5px;letter-spacing:0.04em;border:1px solid #5B21B6;flex-shrink:0;">✓ TESTED</span> `;
+
   if(m_live) html += `<span title="Data freshly pulled from HuggingFace. Without this, we fall back to our built-in catalog which may be months older." style="background:#16A34A;color:#fff;font-family:'JetBrains Mono',monospace;font-size:0.52rem;font-weight:800;padding:1px 5px;letter-spacing:0.04em;border:1px solid #166534;flex-shrink:0;">⚡ LIVE</span> `;
-  
+
   if(m_quality === 'formula') html += `<span title="VRAM numbers estimated from architecture math — usually within 10–20% of real-world usage. Good enough for model selection." style="background:#D97706;color:#fff;font-family:'JetBrains Mono',monospace;font-size:0.52rem;font-weight:800;padding:1px 5px;letter-spacing:0.04em;border:1px solid #92400E;flex-shrink:0;">⚠ ESTIMATED</span>`;
-  
+
   return html;
 }
 
@@ -2459,7 +2629,7 @@ function renderCard(m){
   }
 
   return `
-  <div class="model-card" data-tier="${m.tier}" data-uses="${m.uses.join(',')}" data-name="${m.name.toLowerCase()}" data-creator="${m.creator.toLowerCase()}" data-model-id="${m.id}" style="position:relative; overflow:hidden; cursor:pointer;">
+  <div class="model-card" data-tier="${m.tier}" data-uses="${m.uses.join(',')}" data-name="${m.name.toLowerCase()}" data-creator="${m.creator.toLowerCase()}" data-model-id="${m.id}" role="button" tabindex="0" aria-label="View details for ${safeText(m.name)}" style="position:relative; overflow:hidden; cursor:pointer;">
     ${gradeHTML}
     <div class="model-card-header" style="padding-right: ${userHardware.set ? '75px' : '1.125rem'}; ${borderStyle}">
       <div style="flex:1;min-width:0;">
@@ -2524,7 +2694,7 @@ function renderTierLists(){
     if (countTag) countTag.innerText = models.length;
 
     el.innerHTML = models.map(m => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.5rem;border:1px solid #E4E4E7;background:#fff;cursor:pointer;transition:background 0.12s;" data-model-id="${m.id}" onmouseenter="this.style.background='#F4F4F5'" onmouseleave="this.style.background='#fff'">
+      <div role="button" tabindex="0" aria-label="View details for ${safeText(m.name)}" style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0.5rem;border:1px solid #E4E4E7;background:#fff;cursor:pointer;transition:background 0.12s;" data-model-id="${m.id}" onmouseenter="this.style.background='#F4F4F5'" onmouseleave="this.style.background='#fff'">
         <div>
           <span style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;font-weight:800;color:#000;">${m.name}</span>
           ${verifiedBadge(m.verified, m.live_enriched, m.data_quality)}
@@ -2721,21 +2891,49 @@ function openDrawer(id){
     </a>
   `;
 
+  // Remember which element triggered the open so focus can return there on close.
+  // Skip overwriting during prev/next navigation — the trigger is the original card.
+  if (!_drawerCurrentId && document.activeElement && document.activeElement !== document.body) {
+    _drawerLastTrigger = document.activeElement;
+  }
+
   _drawerCurrentId = id;
-  document.getElementById('detail-drawer').classList.add('open');
+  const drawer = document.getElementById('detail-drawer');
+  drawer.classList.add('open');
+  drawer.setAttribute('aria-modal', 'true');
+  drawer.setAttribute('role', 'dialog');
   document.getElementById('drawer-backdrop').classList.add('active');
   document.body.style.overflow = 'hidden';
+  // Move focus into the drawer so screen readers / keyboard users land in the panel.
+  // Defer one tick so the .open transition has begun and the element is focusable.
+  setTimeout(() => {
+    const closeBtn = drawer.querySelector('[aria-label="Close details"]');
+    if (closeBtn) closeBtn.focus();
+  }, 50);
+  if (_urlSyncReady) updateUrlParams();
 }
 
-// Track which model is currently open so prev/next can navigate
+// Track which model is currently open so prev/next can navigate, plus the element
+// that triggered the open (so we can restore focus there on close — a11y).
 let _drawerCurrentId = null;
+let _drawerLastTrigger = null;
 
 // Slides the detail drawer closed and re-enables body scrolling.
 function closeDrawer(){
-  document.getElementById('detail-drawer').classList.remove('open');
+  const drawer = document.getElementById('detail-drawer');
+  if (!drawer.classList.contains('open')) return; // No-op when already closed
+  drawer.classList.remove('open');
+  drawer.removeAttribute('aria-modal');
+  drawer.removeAttribute('role');
   document.getElementById('drawer-backdrop').classList.remove('active');
   document.body.style.overflow = '';
   _drawerCurrentId = null;
+  // Return focus to whatever opened the drawer — essential for keyboard users.
+  if (_drawerLastTrigger && document.body.contains(_drawerLastTrigger)) {
+    try { _drawerLastTrigger.focus(); } catch(e) {}
+  }
+  _drawerLastTrigger = null;
+  if (_urlSyncReady) updateUrlParams();
 }
 
 // Navigate drawer to previous (-1) or next (+1) model in the current visible list
@@ -2859,35 +3057,72 @@ function updateHwStrip() {
     const g = getGrade(m, userHardware.ram, userHardware.vram);
     return g.grade !== 'F';
   }).length;
-  countEl.textContent = `${compatible} of ${MODELS.length} models will run`;
+  countEl.textContent = `${compatible} of ${MODELS.length} models compatible`;
   strip.classList.add('visible');
 }
 
 // ── SHAREABLE URL ──
-// Reads ?ram=&vram= query params on first load so shared links pre-score cards.
-// Must run BEFORE loadModelsPipeline() so the first render includes grades.
-// Example shareable URL: /index3.html?ram=32&vram=24
+// Reads ?ram=&vram=&tier=&use=&q=&model= query params on first load. Shared links
+// reproduce the full view: hardware context + active filters + an open drawer.
+// Must run BEFORE loadModelsPipeline() for ram/vram (so first render shows grades);
+// the drawer/filter restore is deferred via the returned `applyPostPipeline` callback,
+// since cards and MODELS[] don't exist until the pipeline finishes.
 function applyUrlParams() {
   const params = new URLSearchParams(window.location.search);
-  const ram  = parseInt(params.get('ram'));
-  const vram = parseInt(params.get('vram'));
-  if (ram > 0 && vram >= 0) {
-    userHardware = { ram, vram, set: true };
+  const ram  = parseInt(params.get('ram'), 10);
+  const vram = parseInt(params.get('vram'), 10);
+  if (Number.isFinite(ram) && ram > 0 && Number.isFinite(vram) && vram >= 0) {
+    userHardware = { ram, vram, bandwidth: 0, isApple: false, set: true };
     const ramEl  = document.getElementById('hw-ram');
     const vramEl = document.getElementById('hw-vram');
     if (ramEl)  ramEl.value  = ram;
     if (vramEl) vramEl.value = vram;
   }
+
+  // Filters + search + drawer — applied post-pipeline so the DOM exists.
+  const tier   = params.get('tier');
+  const use    = params.get('use');
+  const q      = params.get('q');
+  const model  = params.get('model');
+  return function applyPostPipeline() {
+    const allowedTiers = new Set(['all','entry','mid','high','pro']);
+    const allowedUses  = new Set(['all','chat','code','reasoning','vision','rag','tools','embeddings','multilingual','creative']);
+    if (tier && allowedTiers.has(tier)) {
+      activeFilters.tier = tier;
+      const sel = document.getElementById('filter-tier'); if (sel) sel.value = tier;
+    }
+    if (use && allowedUses.has(use)) {
+      activeFilters.use = use;
+      const sel = document.getElementById('filter-use'); if (sel) sel.value = use;
+    }
+    if (q) {
+      const inp = document.getElementById('model-search');
+      if (inp) inp.value = q;
+    }
+    if (tier || use || q) filterModels();
+    // Open the drawer last — only if the model id actually exists in MODELS[].
+    if (model && MODELS.find(m => m.id === model)) openDrawer(model);
+  };
 }
 
-// Writes current ram/vram to the browser URL via history.replaceState (no reload).
-// Called after every saveHardware() so the URL always reflects the live state.
-// Users can copy the URL bar to share their hardware context with others.
+// Writes current state to the browser URL via history.replaceState (no reload).
+// Called whenever any user-visible state changes — hardware, filters, search,
+// or open drawer — so the URL bar is always copy-pasteable.
 function updateUrlParams() {
-  if (!userHardware.set) return;
   const url = new URL(window.location.href);
-  url.searchParams.set('ram',  userHardware.ram);
-  url.searchParams.set('vram', userHardware.vram);
+  const sp = url.searchParams;
+  // Hardware
+  if (userHardware.set) { sp.set('ram', userHardware.ram); sp.set('vram', userHardware.vram); }
+  else { sp.delete('ram'); sp.delete('vram'); }
+  // Filters — only include if non-default to keep links short
+  if (activeFilters.tier && activeFilters.tier !== 'all') sp.set('tier', activeFilters.tier); else sp.delete('tier');
+  if (activeFilters.use && activeFilters.use !== 'all')   sp.set('use', activeFilters.use);   else sp.delete('use');
+  // Search query
+  const qInput = document.getElementById('model-search');
+  const q = qInput ? qInput.value.trim() : '';
+  if (q) sp.set('q', q); else sp.delete('q');
+  // Open drawer
+  if (_drawerCurrentId) sp.set('model', _drawerCurrentId); else sp.delete('model');
   history.replaceState(null, '', url.toString());
 }
 
@@ -2947,26 +3182,33 @@ const revealObserver = new IntersectionObserver((entries) => {
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Restore saved hardware specs before pipeline renders cards
   restoreHardware();
-  // 2. Apply URL params — must run before pipeline so first render shows grades
-  applyUrlParams();
+  // 2. Apply URL params — ram/vram applied now (so first render shows grades);
+  //    filters/search/drawer restore is deferred until the pipeline finishes.
+  const applyPostPipeline = applyUrlParams();
   // 3. Populate the GPU picker <datalist>
   buildGpuSelector();
 
-  // 4. Fire the async pipeline — if it fails, fall back to raw curated data
-  loadModelsPipeline().catch(err => {
-    console.error('Pipeline failed:', err);
-    // Fallback: render catalog directly from CURATED_MODELS without live enrichment
-    MODELS = CURATED_MODELS.map(m => ({ ...m, live_enriched: false, data_quality: 'curated' }));
-    ORIGINAL_ORDER = MODELS.map(m => m.id);
-    const statusText = document.getElementById('pipeline-status-text');
-    const statusBox  = document.getElementById('pipeline-status-box');
-    if (statusText) statusText.innerHTML = '<span style="display:inline-block;width:6px;height:6px;background:#DC2626;border-radius:50%;"></span> Error — showing cached data';
-    if (statusBox)  { statusBox.style.border = '2px solid #D4D4D8'; statusBox.style.background = 'transparent'; }
-    renderAllCards();
-    renderTierLists();
-    renderMinimumsTable();
-    updateHwStrip();
-  });
+  // 4. Fire the async pipeline — if it fails, fall back to raw curated data.
+  //    Either way, run the deferred URL-param restorer to honour ?tier=&use=&q=&model=.
+  loadModelsPipeline()
+    .catch(err => {
+      console.error('Pipeline failed:', err);
+      // Fallback: render catalog directly from CURATED_MODELS without live enrichment
+      MODELS = CURATED_MODELS.map(m => ({ ...m, live_enriched: false, data_quality: 'curated' }));
+      ORIGINAL_ORDER = MODELS.map(m => m.id);
+      const statusText = document.getElementById('pipeline-status-text');
+      const statusBox  = document.getElementById('pipeline-status-box');
+      if (statusText) statusText.innerHTML = '<span style="display:inline-block;width:6px;height:6px;background:#DC2626;border-radius:50%;"></span> Error — showing cached data';
+      if (statusBox)  { statusBox.style.border = '2px solid #D4D4D8'; statusBox.style.background = 'transparent'; }
+      renderAllCards();
+      renderTierLists();
+      renderMinimumsTable();
+      updateHwStrip();
+    })
+    .finally(() => {
+      // Restore filter/search/drawer state from URL params now that MODELS[] exists.
+      try { applyPostPipeline(); } catch(e) { console.warn('[url-restore]', e); }
+    });
 
   // 5. Attach scroll-reveal IntersectionObserver to every .reveal element
   document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
@@ -3006,12 +3248,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Keyboard activation for the same elements — Enter and Space open the drawer,
+  // matching native button semantics for our role="button" cards and tier rows.
+  // Listening at document level catches both surfaces in one handler.
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const el = e.target.closest('[data-model-id][role="button"]');
+    if (!el) return;
+    e.preventDefault(); // Space would otherwise scroll the page
+    openDrawer(el.dataset.modelId);
+  });
+
   document.addEventListener('keydown', e => {
     if(e.key === 'Escape'){
       closeDrawer();
       closeSidebar();
     }
   });
+
+  // All initial setup done — let subsequent filterModels() calls update the URL.
+  // Flipping this *after* the pipeline's first render avoids ~6 redundant
+  // history.replaceState calls during boot.
+  _urlSyncReady = true;
 });
 </script>
 </body>
